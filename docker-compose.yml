@@ -1,0 +1,61 @@
+name: skylock
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: skylock
+      POSTGRES_USER: skylock_owner
+      POSTGRES_PASSWORD: skylock_owner
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U skylock_owner -d skylock"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  redis:
+    image: redis:7-alpine
+    # No persistence on purpose: Redis holds only derived state (rate-limit and
+    # velocity counters). Losing it degrades detection, never corrupts bookings.
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  api:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      SKYLOCK_ENV: docker
+      # The app connects as the least-privileged role; migrations run as owner.
+      DATABASE_URL: postgresql+asyncpg://skylock_app:skylock_app@db:5432/skylock
+      MIGRATION_DATABASE_URL: postgresql+asyncpg://skylock_owner:skylock_owner@db:5432/skylock
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET: dev-only-insecure-secret-change-me-0000000000000000
+      DASHBOARD_PASSWORD: dash-dev-password
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+    command:
+      - sh
+      - -c
+      - |
+        alembic upgrade head
+        exec uvicorn app.main:app --host 0.0.0.0 --port 8000
+
+volumes:
+  pgdata:

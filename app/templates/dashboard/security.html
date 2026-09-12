@@ -1,0 +1,36 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Security feed{% endblock %}
+{% block content %}
+<p class="note">
+  Live security events. Each detection carries the rules it hit and the counts
+  that tripped them, so the feed explains <em>why</em> rather than just
+  asserting. Run <code>make demo-carding</code> and watch this fill up.
+</p>
+
+<div class="panel">
+  <h2>
+    Security events
+    <span>
+      <span class="live" style="margin-right: 12px">live · 2s</span>
+      <a href="/dash/security" class="pill {{ '' if severity else 'sev-low' }}">all</a>
+      <a href="/dash/security?severity=medium" class="pill {{ 'sev-medium' if severity == 'medium' else '' }}">medium</a>
+      <a href="/dash/security?severity=high" class="pill {{ 'sev-high' if severity == 'high' else '' }}">high</a>
+      <a href="/dash/security?severity=critical" class="pill {{ 'sev-critical' if severity == 'critical' else '' }}">critical</a>
+    </span>
+  </h2>
+  <div class="scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>Time</th><th>Severity</th><th>Event</th><th>Actor</th>
+          <th>IP</th><th>Decision</th><th>Detail</th>
+        </tr>
+      </thead>
+      <tbody hx-get="/dash/security/rows{% if severity %}?severity={{ severity }}{% endif %}"
+             hx-trigger="every 2s" hx-swap="innerHTML">
+        {% include "dashboard/_security_rows.html" %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

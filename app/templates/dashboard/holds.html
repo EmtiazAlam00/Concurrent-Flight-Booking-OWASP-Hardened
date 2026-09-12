@@ -1,0 +1,29 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Active holds{% endblock %}
+{% block content %}
+<p class="note">
+  Seats currently held for checkout. Rows refresh every second, so a hold
+  reaching zero disappears here at the same moment it stops blocking anyone
+  else's booking.
+</p>
+
+<div class="panel">
+  <h2>
+    Active holds
+    <span class="live">live · 1s</span>
+  </h2>
+  <div class="scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>Seat</th><th>Flight</th><th>Route</th><th>Held by</th>
+          <th>Expires in</th><th>Expires at</th><th>Attached to booking</th>
+        </tr>
+      </thead>
+      <tbody hx-get="/dash/holds/rows" hx-trigger="every 1s" hx-swap="innerHTML">
+        {% include "dashboard/_holds_rows.html" %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

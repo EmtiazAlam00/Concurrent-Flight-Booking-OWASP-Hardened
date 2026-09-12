@@ -1,0 +1,39 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Overview{% endblock %}
+{% block content %}
+<p class="note">
+  Read-only view of state the API changes. Nothing here writes — booking logic
+  lives in one place, and this is not it.
+</p>
+
+<div class="panel">
+  <h2>What to look at</h2>
+  <table>
+    <tr>
+      <td style="width: 170px"><a href="/dash/holds" style="color: var(--accent)">Active holds</a></td>
+      <td class="muted">
+        Seats reserved during checkout, counting down to expiry. An expired hold
+        stops counting the instant it lapses — the sweep job only tidies the row
+        afterwards.
+      </td>
+    </tr>
+    <tr>
+      <td><a href="/dash/audit" style="color: var(--accent)">Audit trail</a></td>
+      <td class="muted">
+        Append-only history of every booking state change, written in the same
+        transaction as the change itself. <code>UPDATE</code> and
+        <code>DELETE</code> are revoked from the application role, so this is
+        immutable at the database level rather than by convention.
+      </td>
+    </tr>
+    <tr>
+      <td><a href="/dash/security" style="color: var(--accent)">Security feed</a></td>
+      <td class="muted">
+        Failed logins, refresh-token replay, authorization denials, rate limits
+        and card-testing detections — each carrying the rule hits that explain
+        why it fired. Run <code>make demo-carding</code> and watch it populate.
+      </td>
+    </tr>
+  </table>
+</div>
+{% endblock %}

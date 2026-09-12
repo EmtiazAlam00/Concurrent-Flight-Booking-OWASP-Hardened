@@ -1,0 +1,17 @@
+{% if not holds %}
+  <tr><td colspan="7" class="empty">No active holds. Hold a seat via <code>POST /holds</code>.</td></tr>
+{% endif %}
+{% for h in holds %}
+  <tr>
+    <td><strong>{{ h.seat_no }}</strong></td>
+    <td>{{ h.flight_no }}</td>
+    <td class="muted">{{ h.route }}</td>
+    <td class="muted">{{ h.email }}</td>
+    <td class="countdown {% if h.seconds_remaining < 30 %}now{% elif h.seconds_remaining < 120 %}soon{% endif %}">
+      {{ '%d:%02d'|format(h.seconds_remaining // 60, h.seconds_remaining % 60) }}
+    </td>
+    <td class="muted">{{ h.expires_at.strftime('%H:%M:%S') }}</td>
+    <td>{% if h.attached_to_booking %}<span class="pill sev-medium">in checkout</span>
+        {% else %}<span class="muted">—</span>{% endif %}</td>
+  </tr>
+{% endfor %}

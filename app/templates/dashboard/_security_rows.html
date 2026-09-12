@@ -1,0 +1,20 @@
+{% if not events %}
+  <tr><td colspan="7" class="empty">No security events recorded yet.</td></tr>
+{% endif %}
+{% for e in events %}
+  <tr>
+    <td class="muted">{{ e.occurred_at.strftime('%H:%M:%S') }}</td>
+    <td><span class="pill sev-{{ e.severity }}">{{ e.severity }}</span></td>
+    <td><strong>{{ e.event_type }}</strong></td>
+    <td class="muted">{{ e.actor_email or (e.actor_user_id|string)[:8] if e.actor_user_id else '—' }}</td>
+    <td class="muted">{{ e.ip or '—' }}</td>
+    <td>
+      {% if e.decision in ('block', 'deny', 'revoke_family') %}
+        <span class="pill sev-high">{{ e.decision }}</span>
+      {% elif e.decision %}
+        <span class="pill sev-medium">{{ e.decision }}</span>
+      {% else %}<span class="muted">—</span>{% endif %}
+    </td>
+    <td><code class="detail">{{ e.detail | tojson }}</code></td>
+  </tr>
+{% endfor %}

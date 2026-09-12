@@ -1,0 +1,53 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Audit trail{% endblock %}
+{% block content %}
+<p class="note">
+  Append-only. Each row was written in the same transaction as the state change
+  it describes, so the log cannot claim something happened that rolled back.
+  <code>seq</code> is gap-free per booking — a gap would mean a lost write.
+</p>
+
+<div class="panel">
+  <h2>Booking audit — most recent first</h2>
+  <div class="scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>Time</th><th>PNR</th><th>#</th><th>Event</th>
+          <th>Transition</th><th>Actor</th><th>Detail</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% if not entries %}
+          <tr><td colspan="7" class="empty">No bookings yet.</td></tr>
+        {% endif %}
+        {% for e in entries %}
+          <tr>
+            <td class="muted">{{ e.occurred_at.strftime('%H:%M:%S') }}</td>
+            <td><strong>{{ e.ref }}</strong></td>
+            <td class="muted">{{ e.seq }}</td>
+            <td>
+              {% if 'FAIL' in e.event_type or 'LOST' in e.event_type %}
+                <span class="pill sev-high">{{ e.event_type }}</span>
+              {% elif 'COMPENSAT' in e.event_type or 'VOID' in e.event_type or 'REFUND' in e.event_type %}
+                <span class="pill sev-medium">{{ e.event_type }}</span>
+              {% elif 'CONFIRMED' in e.event_type or 'ISSUED' in e.event_type %}
+                <span class="pill ok">{{ e.event_type }}</span>
+              {% else %}
+                <span class="pill">{{ e.event_type }}</span>
+              {% endif %}
+            </td>
+            <td class="muted">
+              {% if e.from_state or e.to_state %}
+                {{ e.from_state or '∅' }} → {{ e.to_state or '∅' }}
+              {% else %}—{% endif %}
+            </td>
+            <td class="muted">{{ e.actor_type }}</td>
+            <td><code class="detail">{{ e.detail | tojson }}</code></td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,94 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "demo/**"]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: skylock
+          POSTGRES_USER: skylock_owner
+          POSTGRES_PASSWORD: skylock_owner
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U skylock_owner -d skylock"
+          --health-interval 2s --health-timeout 3s --health-retries 30
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 2s --health-timeout 3s --health-retries 30
+
+    env:
+      # The app connects as the least-privileged role; migrations run as owner
+      # so they can REVOKE from it. The append-only tests depend on this split.
+      DATABASE_URL: postgresql+asyncpg://skylock_app:skylock_app@localhost:5432/skylock
+      MIGRATION_DATABASE_URL: postgresql+asyncpg://skylock_owner:skylock_owner@localhost:5432/skylock
+      REDIS_URL: redis://localhost:6379/15
+      JWT_SECRET: ci-only-secret-0000000000000000000000000000
+      SKYLOCK_ENV: ci
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install
+        run: |
+          uv venv --python 3.12
+          uv pip install -e ".[dev]"
+
+      - name: Create the application role
+        # Mirrors docker/initdb/01-roles.sql, which only runs for the compose
+        # container's first boot.
+        run: |
+          PGPASSWORD=skylock_owner psql -h localhost -U skylock_owner -d skylock \
+            -f docker/initdb/01-roles.sql
+
+      - name: Lint
+        run: |
+          .venv/bin/ruff check .
+          .venv/bin/ruff format --check .
+
+      - name: Type check
+        run: .venv/bin/mypy app
+
+      - name: Migrate
+        run: .venv/bin/alembic upgrade head
+
+      - name: Test
+        run: .venv/bin/pytest -q --durations=10
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+
+      - name: Install
+        run: |
+          uv venv --python 3.12
+          uv pip install -e ".[dev]"
+
+      - name: Static analysis (bandit)
+        run: .venv/bin/bandit -q -r app scripts -ll  # fail on medium severity and above
+
+      - name: Known vulnerable dependencies (pip-audit)
+        # Not --strict: the local `skylock` package is not on PyPI and can never
+        # be audited, so --strict would fail every run for a non-finding.
+        # pip-audit still exits non-zero on an actual advisory.
+        run: .venv/bin/pip-audit --desc

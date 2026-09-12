@@ -1,0 +1,79 @@
+[project]
+name = "skylock"
+version = "0.1.0"
+description = "Secure flight booking API: concurrent seat inventory, compensating booking saga, OWASP API Top 10 defenses"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "sqlalchemy[asyncio]>=2.0.36",
+    "asyncpg>=0.30",
+    "alembic>=1.14",
+    "pydantic[email]>=2.9",
+    "pydantic-settings>=2.6",
+    "redis>=5.2",
+    "pyjwt>=2.10",
+    "argon2-cffi>=23.1",
+    "apscheduler>=3.11",
+    "jinja2>=3.1",
+    "httpx>=0.28",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "ruff>=0.8",
+    "mypy>=1.13",
+    "bandit>=1.8",
+    "pip-audit>=2.7",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+# One event loop for the whole run. The app runs on a single loop and holds
+# connection pools across requests; giving each test a fresh loop would orphan
+# every pooled asyncpg/redis connection on the loop that just closed.
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
+testpaths = ["tests"]
+markers = [
+    "integration: requires Postgres and Redis",
+    "concurrency: races real database sessions against each other",
+    "security: authorization, auth-hardening and detection tests",
+]
+filterwarnings = ["ignore::DeprecationWarning:passlib.*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "S", "C4", "SIM", "ASYNC"]
+ignore = [
+    "S101",  # assert is fine in tests
+    "B008",  # FastAPI Depends() in defaults is the documented idiom
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Test/demo credentials are literals on purpose; `random` seeds fixtures, not keys.
+"tests/**" = ["S105", "S106", "S311"]
+"scripts/**" = ["S105", "S106", "S311"]
+"load/**" = ["S105", "S106", "S311"]
+# Alembic writes these; reformatting them would obscure the diff against a
+# regenerated migration.
+"alembic/versions/*" = ["E501"]
+
+[tool.mypy]
+python_version = "3.12"
+plugins = ["pydantic.mypy"]
+ignore_missing_imports = true
+disallow_untyped_defs = false
+warn_unused_ignores = true
