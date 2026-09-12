@@ -1,4 +1,4 @@
-# SkyLock — Secure Flight Booking API
+# Secure Flight Booking API
 
 Airline seat booking under real concurrency, with security engineering as a
 first-class concern.
